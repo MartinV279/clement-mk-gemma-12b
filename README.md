@@ -375,6 +375,87 @@ lm-evaluation-harness · llama.cpp for GGUF conversion. Single rented A100 80GB.
 
 ---
 
+## Design choices
+
+Why the model is shaped the way it is. Each of these is a deliberate trade, and
+each one closed a door — the [limitations](#limitations) below are the direct
+consequences.
+
+### Starting from the pretrained checkpoint, not the instruction-tuned one
+
+Gemma ships in two flavours: `gemma-4-12B` (**pt**, a raw next-token predictor
+with no notion of turns, users or assistants) and `gemma-4-12B-it`
+(**instruction-tuned** — Google's own SFT and preference tuning, which is what
+adds chat behaviour, refusals, the thought channel and the tool-calling
+template).
+
+We built from **pt**. Starting from `-it` means inheriting an assistant
+personality shaped overwhelmingly on English data, and in another language that
+tends to surface as exactly the register this project exists to avoid: correct,
+polite, and subtly translated. From pt, every conversational habit the model has
+comes from the [constitution](docs/constitution.md) and the data — nothing was
+inherited and left unexamined.
+
+**We tested this rather than assuming it.** An early experiment fine-tuned the
+`-it` text tower on the Macedonian instruction mix and put it in the same blind
+arena: it came out **20–22–8 against the baseline — a dead heat**. That result
+is what justified the far more expensive path of going back to pt and doing
+continued pretraining. The pt route ended at 39–9–2.
+
+The cost is that everything an instruction-tuned model gives you free had to be
+built: turn-taking, refusals, format compliance, honest uncertainty. Anything we
+did not explicitly build, the model does not have.
+
+### The tokenizer was not extended
+
+No new vocabulary was added. Gemma's 262k multilingual vocabulary already covers
+Macedonian Cyrillic at reasonable fertility, and extending it would mean
+randomly-initialised embeddings that *must* be trained before the model is even
+coherent — a large commitment for a modest tokenisation gain. Keeping the
+tokenizer fixed also keeps the model a drop-in for any Gemma-4 tooling.
+
+### LoRA, not full fine-tuning
+
+Every stage is 4-bit QLoRA on a single rented GPU. Full fine-tuning of a 12B
+model across four stages was never within reach, and LoRA at r=256 across 328
+modules is a lot of adaptation capacity. The trade is that adaptation happens in
+the transformer projections rather than in the embedding table — see the note on
+[embeddings](#the-embeddings-were-never-trained).
+
+### Text only — a constraint, not a preference
+
+Gemma-4 is multimodal. At the time this was built, the training stack could not
+train the unified multimodal checkpoint and the evaluation harness could not
+even load it, so the text tower was extracted and the vision/audio embedders
+dropped. The extraction was verified by perplexity parity against the original
+before anything trained on it.
+
+This was a tooling limitation on a then-new architecture, and it may well have
+lifted since. Anyone attempting multimodal Macedonian should re-test whether the
+unified checkpoint trains today before assuming otherwise.
+
+### Scope: the evaluation defined the model
+
+This is the most important thing on this page for anyone deciding whether to use
+Clement.
+
+The project set out to answer one question — *does natively-authored, curated
+data produce better Macedonian than a larger pile of translated text?* — and
+built one instrument to answer it: a 50-prompt arena across ten categories of
+everyday language use, plus a benchmark battery.
+
+**Everything in that instrument is what the model became. Everything outside it
+is absent.** There is no tool-calling category, so there is no tool-calling
+data, no `tool` role in the template, and no tool-calling ability. The same goes
+for structured output and for explicit step-by-step reasoning. These were not
+judged and rejected; they were never in frame.
+
+The practical consequence: Clement is a strong Macedonian **writer and
+conversationalist**, and a weak **component**. If you are building an agent, an
+extraction pipeline, or anything that needs reliable JSON, this model will
+frustrate you — and that is a scoping decision, not a defect to be patched at
+inference time.
+
 ## Running it
 
 Quantized GGUF weights are on
