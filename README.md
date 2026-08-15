@@ -307,10 +307,33 @@ review batches at every stage, and every threshold ratified by a person.
 | Stage | What | Configuration |
 |---|---|---|
 | Base | `google/gemma-4-12B` (pt) | text tower extracted from the multimodal checkpoint (666 tensors); tokenizer unchanged, no vocab extension |
-| 1. CPT | Macedonian adaptation | LoRA r=256, rsLoRA, all-linear + embeddings + lm_head, lr 2e-5 (emb 2e-6), seq 4096 packed, batch 16 (65,536 tok/step). **WSD: 7,699 stable steps + 700 decay = ~551M tokens, 28% of the 2.0B planned.** |
+| 1. CPT | Macedonian adaptation | LoRA r=256, rsLoRA on all attention + MLP projections, lr 2e-5, seq 4096 packed, batch 16 (65,536 tok/step). **Embeddings were *not* trained — see below.** WSD: 7,699 stable steps + 700 decay = **~551M tokens, 28% of the 2.0B planned**. |
 | 2. Anneal | knowledge injection | 11,940 curated short texts, each verified fact as ~10 paraphrases (per the fact-recall literature), r=64, lr 1e-5, 3 epochs, seq 2048 |
 | 3. SFT | behavior and register | 28,862 conversations, r=64 α=64, lr 1e-4 cosine, warmup 0.03, 2 epochs, seq 4096, response-only loss, style constitution as system prompt |
 | 4. ORPO | preference tuning | 5,899 pairs, β=0.1, lr 5e-6, 1 epoch, rsLoRA r=64, adamw_8bit, 500-pair frozen holdout |
+
+### The embeddings were never trained
+
+The CPT config asked for `train_embed_tokens: true` with a decoupled 2e-6
+learning rate — the standard recipe for adapting a model to a new language. **It
+silently did nothing.** The `target_modules` regex the trainer generated only
+matches `embed_tokens`/`lm_head` when they appear *nested inside* an
+attention or MLP path, and they never do — they live at `model.embed_tokens` and
+`lm_head`. The published CPT adapter contains **656 tensors, none of them
+embeddings**, and `modules_to_save` is null. You can verify this yourself from
+the [adapter on Hugging Face](https://huggingface.co/MartinV/clement-mk-gemma-12b/tree/main/adapters/cpt).
+
+So: the tokenizer is unchanged *and* the token embeddings are unchanged. Every
+bit of Macedonian adaptation in this model happened in the attention and MLP
+projections of the transformer layers, on top of the base model's original
+embedding table. Note also that Gemma-4 ties its input embeddings to the output
+head, so this affects both ends.
+
+This was caught in our own diagnostics at the time and is recorded in the
+experiment log — but it was not fixed, and the run went ahead without it. It is
+a missed lever rather than a defect: whatever the model gained, it gained
+without the embedding adaptation the recipe intended. Retraining with the
+embeddings actually included is an obvious and cheap thing to try next.
 
 ### How much of the data the model actually saw
 
@@ -541,6 +564,28 @@ Stated plainly, because a model card that only lists strengths is not informatio
   It will state as settled things that a careful person would attribute.
 - **The benchmark result is a statistical tie**, not a win. See above.
 - **The arena judge was an LLM**, not a panel of native speakers.
+- **Text only.** Gemma-4-12B is multimodal, but this model was built from the
+  extracted *text tower* — the 11 vision and audio embedder tensors were dropped
+  before any training, and the vision/audio configs stripped. Clement cannot see
+  images or hear audio, and that capability cannot be recovered from these
+  artifacts. It is not damaged multimodality; it was never carried.
+- **No explicit reasoning mode.** Gemma-4's canonical chat template exposes a
+  thought channel. Nothing here was trained to use it — the synthetic data
+  contains final answers, not reasoning traces — so the shipped template omits
+  it (leaving it in produces junk prefixes and broken stops). The model reasons
+  inline, in the answer, or not at all. On the arena's reasoning category it
+  goes 3–1–1, and the math probe shows what the failures look like.
+- **No tool / function calling.** The shipped chat template handles only
+  `system`, `user` and `assistant` — there is no `tool` role and no
+  function-call rendering — and the training mix contains **zero** tool-calling
+  examples across 28,603 assistant turns. Passing tools to an OpenAI-compatible
+  endpoint will not work as expected.
+- **Structured output was not trained.** Not one of those 28,603 assistant turns
+  is JSON-shaped. The model was trained on prose and on *markdown* structure
+  (headings, lists, tables), which it handles well, but "reply in JSON" is out
+  of distribution. If you need machine-readable output, constrain the sampler
+  rather than trusting the prompt — llama.cpp GBNF grammars and
+  `response_format` work at decode time and need no training support.
 - Effective context 4096 tokens as shipped. English ability is inherited from the
   base model and was not a target; it was monitored, not optimized.
 - Not safety-tuned for deployment. No red-teaming was performed.
