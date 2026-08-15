@@ -729,6 +729,23 @@ hash unchanged, chat template renders byte-identical to the training render,
 decontamination returns zero hits. **Every item on that list is a bug this
 project actually had.**
 
+**How much did it actually cost us?** Less than it sounds, and the reason is
+worth understanding. Embedding training matters *most* when you extend the
+vocabulary, because new tokens start randomly initialised and are noise until
+trained. We deliberately did not extend the tokenizer — so every Macedonian
+subword already carried a meaningful embedding from the base model's own
+multilingual pretraining. They were not broken, merely unspecialised. The loss is
+narrower than "the model cannot represent Macedonian": all adaptation had to be
+done by the attention and MLP layers reinterpreting fixed input vectors, rather
+than by moving the vectors themselves. With enough LoRA capacity that is
+evidently survivable.
+
+Ranked honestly against the other mistake on this page: **stopping pretraining at
+28% is the larger one.** That is data the model never saw at all. The embedding
+miss is a lever left unpulled on data it did see. Neither is measured, so treat
+that ordering as reasoning rather than a result — and the clean way to settle it
+is an ablation against the same frozen arena.
+
 ### 4. The evaluation suite is the specification
 
 Clement has no tool calling, no structured output and no explicit reasoning
@@ -821,6 +838,48 @@ date, a version, and a retest trigger. One of ours — dropping multimodality �
 was correct when made and possibly obsolete within weeks, but by then the
 expensive stage had been built on top of it and reversing meant redoing
 everything. **Re-test constraints early, while reversing is still cheap.**
+
+### 8. If you are training on rented infrastructure
+
+Two failure modes cost us more than any modelling mistake.
+
+**A watchdog that cannot see must fail loudly, not quietly.** An instance of ours
+ran idle for eight days because the provider deprecated an API endpoint, it began
+returning an error, and our monitor decoded that error as *"nothing is running."*
+Silence read as health. We hit seven bugs of this same class — checks that
+assumed a response format, or that could not distinguish themselves from the
+process they were watching.
+
+The rule that fixed it: **a monitor must refuse to start if it cannot read the
+thing it guards.** Our final watcher exits non-zero when the pod state is
+unreadable, because a silent watchdog is worse than none — it produces
+reassuring silence.
+
+**Checkpoint more often than your instance's mean time between failures.** We
+lost a full run to spot interruptions because the checkpoint interval was longer
+than the interval between preemptions, so no checkpoint ever completed. Measure
+the failure rate first, then set the interval under it.
+
+### The pattern underneath all of this
+
+Reading these findings back, they are not seven different mistakes. They are one
+mistake with seven faces:
+
+> **The measurement always existed. It was recorded correctly. Nothing was built
+> that forced anyone to act on it.**
+
+The embedding no-op was in our diagnostics on day one. The failed fact-injection
+result was in the experiment log. The 94% retrieval number was in the experiment
+log, two days before we shipped without it. The deprecated API error was in the
+watcher output. The tooling constraint had a date attached to it.
+
+Nothing was missed. What was missing was the boring machinery that converts an
+observation into a stop: assertions that fail the run, gates that block the next
+stage, revisit triggers on decisions with expiry dates. Almost everything on this
+page would have been caught by an afternoon spent building that machinery instead
+of another round of data.
+
+If you take one thing from this section, take that — not the specific bugs.
 
 ## Next steps
 
