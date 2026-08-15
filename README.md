@@ -665,6 +665,163 @@ Stated plainly, because a model card that only lists strengths is not informatio
 
 ---
 
+## Findings — what we would do differently
+
+The model is the experiment's output; this section is its actual result. If you
+are adapting a large model to an under-resourced language, these are the things
+we would want to have known at the start.
+
+### 1. Finish the pretraining before touching anything else
+
+**The single biggest lever, and we got it wrong.** Continued pretraining owns
+*knowledge*; supervised fine-tuning owns *behaviour*. We spent most of the
+project's effort on behaviour and stopped pretraining at 28% — then spent three
+rounds fighting a fabrication problem that was the arithmetic consequence.
+
+Style was good enough early. Round after round of instruction-data polish moved
+arena categories by a vote or two — inside the noise of a 50-prompt set — while
+the actual bottleneck went unaddressed.
+
+**Next time: spend the compute on pretraining first, and do not start SFT until
+it is done.** If the honest budget is smaller than the plan, shrink the plan and
+anneal properly rather than stopping a large run early.
+
+### 2. Fact injection does not work at fine-tuning scale — stop retrying it
+
+We attempted parametric knowledge injection **three separate times**, escalating
+each round: grounded question-answer rows with preference pairs against the
+model's own fabrications; then a dedicated knowledge-anneal stage with each
+verified fact rendered as roughly ten paraphrases, per the fact-recall
+literature; then title-keyed cultural passages.
+
+Measured with a strict entailment probe on obscure canon: **0% supported, then
+1%, then still fabricating in the arena's culture category.**
+
+The lesson is not "try harder." It is that **a repeated measurement is a
+result**: when the same *class* of intervention fails twice, the third attempt
+must be a different class, not a larger dose. The two classes that do work are
+more pretraining tokens, and retrieval.
+
+We had also built and measured a retrieval component at **94% gold-passage
+retrieval** — and shipped without it. That is the clearest unforced error here.
+If facts matter to your users, decide the mechanism *before* training and treat
+retrieval as a first-class shipped component, not a side experiment.
+
+### 3. Assert what you intended actually happened
+
+Our pretraining config requested embedding training with a decoupled learning
+rate. The generated module filter could not match the embedding table, so it
+**silently did nothing** — a fact visible in the resulting adapter, and recorded
+in our own diagnostics at the time, but never acted on.
+
+The trainer does not error when *some* modules match. The loss curve looks
+perfect. The only signal is the trainable-parameter count, and it is not subtle:
+this model's embedding table is over a billion parameters.
+
+```python
+trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+assert trainable > EXPECTED_MIN, f"only {trainable/1e9:.2f}B trainable"
+```
+
+Write a preflight check that runs before every job and exits non-zero: trainable
+count matches intent, every requested target module actually matched, tokenizer
+hash unchanged, chat template renders byte-identical to the training render,
+decontamination returns zero hits. **Every item on that list is a bug this
+project actually had.**
+
+### 4. The evaluation suite is the specification
+
+Clement has no tool calling, no structured output and no explicit reasoning
+because none of them was in the arena. That is not a coincidence — it is the
+mechanism. You get what you measure, faithfully and only.
+
+Decide the capability matrix *first*, and build a frozen eval for every row
+before training starts:
+
+| Capability | What it needs in the eval | What it needs in the data |
+|---|---|---|
+| Native register | blind arena, sealed key, native judges | native authoring + style constitution |
+| Factual recall | entailment probe on obscure facts | pretraining tokens, or retrieval |
+| Reasoning | auto-scored multi-step problems | worked solutions with visible steps |
+| Tool calling | scenarios validated against schemas | tool-call turns **and** a `tool` role in the template |
+| Structured output | tasks parsed and schema-validated | JSON-target rows, plus constrained decoding at inference |
+| Capability retention | the base model's original strengths | replay data in the mixture |
+
+Anything absent from that table will be absent from the model.
+
+### 5. How we would add the capabilities we skipped
+
+- **Embeddings.** Use the framework's mechanism for fully-trained modules rather
+  than routing them through a LoRA target filter, and keep the decoupled lower
+  learning rate by building the optimizer param group explicitly. Cheaper
+  alternatives worth trying first: a LoRA adapter on the embedding table, or
+  training only the token rows your language actually uses. Watch for tied
+  embeddings — changing the input table changes the output logits.
+- **Reasoning.** Generate worked solutions where the answer is provably correct
+  by construction (template the problem in code, let the model write only the
+  prose — we did this for arithmetic and it worked), keep the reasoning visible
+  in the target, and add an auto-scored probe so you can see collapse when it
+  happens. Note that generating reasoning traces from a teacher is materially
+  more expensive than generating answers.
+- **Structured output.** Include JSON-target rows in the mix, but do not rely on
+  training alone: constrain the sampler at inference (llama.cpp GBNF grammars,
+  `response_format`). Constrained decoding works with no training support at all,
+  which makes it the highest-return item on this list.
+- **Tool calling.** This needs a template change, not just data — a `tool` role
+  and function-call rendering — plus conversations that call, receive results,
+  and continue. Validate against real schemas in the eval.
+- **Multimodality.** Re-test whether your stack can train the unified checkpoint
+  *before* extracting a text tower. If it can, keep the vision and audio towers
+  frozen and adapt only the language side: you get a model that sees and hears
+  through the original projector while speaking your language. The projector can
+  drift out of alignment if you adapt the language model hard, and re-aligning it
+  needs far less image-text data than training from scratch.
+
+### 6. Data cleaning: what we would repeat, and what we would add
+
+**Repeat all of this — it is what made the difference:**
+
+- **Audit the landscape before building.** The [census](docs/dataset_census.md)
+  is why this project had a thesis instead of an intuition.
+- **Automated filters propose; a native speaker disposes.** Every threshold
+  ratified by a human reading 100–300 real samples. Our blocklist wanted to ban
+  a word that is perfectly good Macedonian; only a speaker caught it.
+- **Screen for cross-language bleed explicitly.** For languages sharing a script
+  with larger neighbours this is the highest-value filter, and generic language
+  ID will not do it.
+- **Split perplexity thresholds by register.** A filter trained on encyclopedic
+  prose will quietly delete natural conversational speech — exactly the register
+  you are trying to teach.
+- **Build preference pairs by construction, not by judgment.** An LLM judge
+  failed our validation; mechanical corruption (round-trip translation, bloat,
+  bleed substitution) guarantees the ordering.
+- **Validate your validators.** We fed the answer-key panel deliberately
+  corrupted keys and confirmed it rejected all of them. A verification step you
+  have not tried to fool is not a verification step.
+
+**Add next time:**
+
+- Decontaminate against the eval set *continuously*, from the first generated
+  row — and use a token-overlap gate alongside n-grams, because short prompts
+  slip n-gram checks.
+- Track register balance as an explicit target. Our depth and brevity problems
+  were distribution problems, and we chased them with output-length instructions
+  for several rounds before fixing the prompt mix instead.
+- Keep a small human-written anchor set from day one and use it as the reference
+  every generation round is conditioned on and measured against. Ours was worth
+  more than any quantity of machine-translated text.
+
+### 7. Fewer, larger runs; and date-stamp your constraints
+
+Information gained per training round fell off sharply after the first couple.
+Two runs at double the scale would very likely have beaten the number we did.
+
+And every decision made because "the tooling cannot do this yet" should carry a
+date, a version, and a retest trigger. One of ours — dropping multimodality —
+was correct when made and possibly obsolete within weeks, but by then the
+expensive stage had been built on top of it and reversing meant redoing
+everything. **Re-test constraints early, while reversing is still cheap.**
+
 ## Next steps
 
 The honest summary of this project is that it validated the *data* thesis on a
