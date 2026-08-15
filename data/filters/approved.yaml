@@ -1,0 +1,10 @@
+# User-approved filter decisions (CLAUDE.md: filters propose, user disposes).
+kenlm_ppl_threshold: 3595        # approved 2026-07-23; p99 of clean wiki+books holdout,
+                                 # rejects ~2.6% of the general corpus (WEB/PROSE text)
+kenlm_ppl_threshold_conversational: 32000  # approved 2026-07-24 after user reviewed
+                                 # kenlm_dropped_review_40.md ("mostly ok" — the 3595
+                                 # threshold was biased against spoken register);
+                                 # p99 of the synthetic-conversation distribution
+blocklist: blocklist_approved.txt  # 308 terms; all draft candidates approved by the native speaker
+langid_min_conf: 0.65            # pinned in CLAUDE.md
+decontaminate_ngram: 8           # vs frozen eval/vibes_prompts.jsonl

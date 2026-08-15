@@ -1,0 +1,8 @@
+# Phase 4 — ORPO. Values PINNED (CLAUDE.md hard rule 3).
+base_model: skazna-sft
+pairs: 5000                              # 5-10k
+num_train_epochs: 1
+learning_rate: 5.0e-6
+regression_holdout: 500                  # frozen; never trained on
+checkpointing:
+  save_steps: 500

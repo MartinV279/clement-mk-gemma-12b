@@ -1,0 +1,15 @@
+# Phase 3 — SFT. Values PINNED (CLAUDE.md hard rule 3) except where marked TBD.
+base_model: skazna-base                  # CPT output; or google/gemma-4-12B-it if the P0 gate skips CPT
+load_in_4bit: true                       # QLoRA
+lora:
+  r: 64
+learning_rate: 1.0e-4
+num_train_epochs: 2                      # pinned range 2-3; log any change per-experiment
+max_seq_length: null                     # TBD: user must pin a value in 4096-8192 before Phase 3
+chat_template: gemma-4-it                # read from the -it tokenizer config at runtime — never from memory
+system_prompt_file: docs/constitution.md
+dataset:
+  size_target: 35000
+  oversample_native_vs_translated: 3     # hand-written + native-synthetic >=3:1 over translated
+checkpointing:
+  save_steps: 500

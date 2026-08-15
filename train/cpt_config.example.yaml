@@ -1,0 +1,45 @@
+# Phase 2 — Continued Pretraining. Example config for run_cpt.py.
+#
+# These are the hyperparameters the published model was trained with. The data
+# `mixture` block is left as an example: fill in your own sources and their
+# proportions. Copy this to train/cpt_config.yaml before running.
+base_model: google/gemma-4-12B          # pt checkpoint, NOT -it
+unsloth_mirror: unsloth/gemma-4-12b
+load_in_4bit: true                       # QLoRA
+
+lora:
+  r: 256
+  target_modules: all-linear
+  use_rslora: true
+  train_embed_tokens: true               # decoupled ~10x lower LR (Unsloth embedding_learning_rate)
+  train_lm_head: true
+
+learning_rate: 2.0e-5                    # peak
+embedding_learning_rate: 2.0e-6
+lr_scheduler_type: warmup_stable_decay
+# WSD in two invocations: phase 1 runs `--scheduler constant` (stable) for as
+# long as the run is planned to last; phase 2 resumes those weights with
+# `--scheduler linear --init-adapter <phase1_final>` and anneals the LR to zero
+# over roughly 8% of the phase-1 steps. The point is that the stopping point
+# becomes a runtime decision instead of a pre-committed schedule, so a
+# faster-than-expected run consumes MORE tokens rather than leaving an unused
+# schedule tail behind.
+warmup_ratio: 0.01
+
+max_seq_length: 4096
+packing: true
+num_train_epochs: 1
+
+# Proportions of the training mixture, by token share. Macedonian dominates;
+# the English replay share is what protects the base model's English ability
+# (monitor it — if English drops sharply, raise this) and the parallel slice
+# keeps MK<->EN alignment alive.
+mixture:
+  mk: 0.65
+  en: 0.20                               # replay, e.g. a fineweb-edu sample
+  math_code: 0.10
+  parallel: 0.05                         # MK-EN sentence pairs
+
+checkpointing:
+  save_steps: 500                        # assume the instance WILL be interrupted
+  save_total_limit: 3

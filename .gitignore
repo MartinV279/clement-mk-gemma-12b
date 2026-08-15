@@ -1,0 +1,42 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Data, models, checkpoints
+data/raw/
+data/processed/
+data/downloads/
+data/mixture/
+data/models/
+data/handwritten/
+checkpoints/
+outputs/
+models/
+release/
+*.gguf
+*.safetensors
+*.bin
+rag/index/
+
+# Generation ledgers and logs
+data/synth/.gemini_usage_*.json
+logs/
+*.log
+wandb/
+runs/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.venv-train/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Build artifacts
+llama.cpp/
+unsloth_compiled_cache/
+
+# OS
+.DS_Store

@@ -1,0 +1,25 @@
+{#- Skazna ship template: EXACTLY the format SFT trained on.
+    The upstream "canonical" gemma-4 template injects a thought-channel
+    scaffold (<|channel>thought) after the model marker that this model never
+    saw in training — it produces junk prefixes and broken stops downstream.
+    This template renders plain turns and ends the generation prompt at
+    "<|turn>model\n", matching the training render byte-for-byte.
+    System messages fold into the first user turn (training convention). -#}
+{{- bos_token -}}
+{%- set ns = namespace(sys='') -%}
+{%- for message in messages -%}
+{%- if message.role == 'system' -%}
+{%- set ns.sys = message.content -%}
+{%- elif message.role == 'user' -%}
+<|turn>user
+{% if ns.sys %}{{ ns.sys }}
+
+{% set ns.sys = '' %}{% endif %}{{ message.content }}<turn|>
+{% elif message.role == 'assistant' -%}
+<|turn>model
+{{ message.content }}<turn|>
+{% endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+<|turn>model
+{% endif -%}

@@ -1,0 +1,9 @@
+{
+ "model": "gemini-3-flash-preview",
+ "task": "exams_test_mk.jsonl",
+ "protocol": "generative-letter",
+ "n": 2075,
+ "answered": 2075,
+ "correct": 1978,
+ "acc": 0.9532530120481928
+}
