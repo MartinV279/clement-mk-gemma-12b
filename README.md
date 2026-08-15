@@ -550,20 +550,12 @@ hidden, and the culture category is where they cluster.
 
 Stated plainly, because a model card that only lists strengths is not information.
 
-- **It will confidently fabricate long-tail facts**, especially Macedonian cultural
-  and historical detail. This is the category we lose in the arena (1–4) and it is
-  a direct consequence of the trade-off in
-  [What we optimized for](#what-we-optimized-for--and-what-we-did-not). Asked about
-  a national literary figure it may attach a plausible but wrong role or date.
-  For anything factual, verify — and lower the temperature.
 - **Fluency outruns knowledge.** It sounds most confident exactly where it is least
   reliable, which is the more dangerous failure mode. Native register is not
   evidence of a correct answer.
 - **Culturally contested topics need care.** Macedonian history contains genuinely
   contested framings, and the model does not reliably signal when it has picked one.
   It will state as settled things that a careful person would attribute.
-- **The benchmark result is a statistical tie**, not a win. See above.
-- **The arena judge was an LLM**, not a panel of native speakers.
 - **Text only.** Gemma-4-12B is multimodal, but this model was built from the
   extracted *text tower* — the 11 vision and audio embedder tensors were dropped
   before any training, and the vision/audio configs stripped. Clement cannot see
