@@ -103,7 +103,7 @@ def main() -> None:
         raise SystemExit("peak hours — bulk runs are scheduled off-peak only")
 
     constitution = Path("docs/constitution.md").read_text(encoding="utf-8")
-    # gold style anchors: the user's own handwritten answers (600-1200 chars,
+    # gold style anchors: the curated anchor set (600-1200 chars,
     # deep enough to demonstrate register without bloating the cached prefix)
     hw = [json.loads(l)["conversations"]
           for l in Path("data/handwritten/handwritten.jsonl").open(encoding="utf-8")]

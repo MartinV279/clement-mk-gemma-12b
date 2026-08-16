@@ -10,6 +10,6 @@ chat_template: gemma-4-it                # read from the -it tokenizer config at
 system_prompt_file: docs/constitution.md
 dataset:
   size_target: 35000
-  oversample_native_vs_translated: 3     # hand-written + native-synthetic >=3:1 over translated
+  oversample_native_vs_translated: 3     # curated-anchor + native-synthetic >=3:1 over translated
 checkpointing:
   save_steps: 500
