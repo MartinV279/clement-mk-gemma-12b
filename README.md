@@ -267,7 +267,7 @@ Verified 0 leaks across the full 28,862-row training mix.
 | Science MCQ pack | 2,000 | **1,968** | answer-key panel |
 
 **Synthetic data was authored, never translated.** Teachers (DeepSeek in early
-rounds, Gemini Flash later) were prompted with a hand-written
+rounds, Gemini Flash later) were prompted with a strict
 [style constitution](docs/constitution.md) — the document that defines what
 Macedonian *should* sound like here, down to the triple definite article and the
 banned Serbian/Bulgarian forms — and instructed to *write* in Macedonian on a topic. Never
@@ -296,9 +296,11 @@ answers written from verified Wikipedia passages (title-keyed, after naive subst
 matching failed five different ways on namesakes), and template-generated math where
 the answer is provably correct by construction and the model only writes the prose.
 
-**Human in the loop throughout:** 700 hand-written native conversations —
-published as a dataset, since native Macedonian instruction data barely exists —
-review batches at every stage, and every threshold ratified by a person.
+**Human in the loop throughout:** a 700-conversation gold anchor set — a seed
+of conversations written by hand, continued by frontier LLMs under exact rules
+derived from those seeds, then edited and reviewed by the author — published as
+a dataset, since native Macedonian instruction data barely exists. Review
+batches at every stage, and every threshold ratified by a person.
 
 ---
 
@@ -825,9 +827,10 @@ Anything absent from that table will be absent from the model.
 - Track register balance as an explicit target. Our depth and brevity problems
   were distribution problems, and we chased them with output-length instructions
   for several rounds before fixing the prompt mix instead.
-- Keep a small human-written anchor set from day one and use it as the reference
-  every generation round is conditioned on and measured against. Ours was worth
-  more than any quantity of machine-translated text.
+- Keep a small curated anchor set from day one — hand-write the seeds, derive
+  generation rules from them, and edit what the models produce — and use it as
+  the reference every generation round is conditioned on and measured against.
+  Ours was worth more than any quantity of machine-translated text.
 
 ### 7. Fewer, larger runs; and date-stamp your constraints
 
