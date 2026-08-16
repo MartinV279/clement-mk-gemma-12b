@@ -90,8 +90,8 @@ retrievable.** We measured this three separate times, including a dedicated
 knowledge-anneal stage built specifically to inject facts. Style moved. Facts
 did not stick. That finding drove the division of labor in this project — SFT
 and preference tuning own behavior and register; pretraining owns knowledge —
-and it is the reason the [next step](#next-steps) is a full CPT run rather than
-more instruction data.
+and it is the reason the clearest next lever is a full CPT run rather than
+more instruction data — see the [findings](#findings--what-we-would-do-differently).
 
 ---
 
@@ -356,14 +356,12 @@ So roughly nine-tenths of the Macedonian text we prepared was never trained on.
 Read that twice, because it cuts both ways:
 
 - It is **the single biggest known limitation** of this model and the most likely
-  explanation for the fabrication problem — which is why
-  [next steps](#next-steps) begins with finishing the run rather than with more
-  instruction data.
+  explanation for the fabrication problem — which is why finishing the run, not
+  adding more instruction data, is the first thing to do next (see the
+  [findings](#findings--what-we-would-do-differently)).
 - It is also **the strongest evidence for the thesis.** The arena result was
   produced by a model that saw a ninth of the available Macedonian text. Whatever
   is doing the work here, it is not volume.
- Token counts for the Macedonian corpus
-are discussed in [`docs/dataset_census.md`](docs/dataset_census.md).
 
 Trainable parameters at the SFT stage: **262,275,072 of 12,169,625,344** (2.16%).
 
@@ -883,30 +881,6 @@ page would have been caught by an afternoon spent building that machinery instea
 of another round of data.
 
 If you take one thing from this section, take that — not the specific bugs.
-
-## Next steps
-
-The honest summary of this project is that it validated the *data* thesis on a
-deliberately small compute footprint. The obvious next move is to stop
-under-spending on the stage that owns knowledge:
-
-1. **Finish the pretraining.** The single clearest lever: this model saw ~551M
-   tokens of Macedonian continued-pretraining, 28% of what was planned, and the
-   fabrication problem is the direct consequence. Completing that schedule and
-   then extending it over the Tier 1 sources in the census — CLASSLA-web.mk 2.0 (CC0, a dedicated .mk/.мкд TLD crawl, ~550M
-   genuinely new words), HPLT 3.0 mkd, `finepdfs` (the PDF layer — books, legal,
-   academic, where our corpus is ~94% HTML crawl), MADLAD-400-mk. Realistic
-   net-new: **+1.5–3B tokens**, with a register shift toward books and literature
-   that crawls under-serve. This is the direct fix for the fabrication problem.
-2. **Expanded native benchmarks** — the field needs more than three natively
-   authored Macedonian eval sets.
-3. **RAG integration** for factual queries, since retrieval solves what
-   SFT-scale fine-tuning demonstrably does not. Reference implementation in
-   [`rag/`](rag/).
-4. **Community evaluation** — a real panel of native speakers would be worth more
-   than any number in this README.
-
----
 
 ## Repository
 
