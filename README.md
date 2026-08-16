@@ -637,6 +637,9 @@ Stated plainly, because a model card that only lists strengths is not informatio
 - **Culturally contested topics need care.** Macedonian history contains genuinely
   contested framings, and the model does not reliably signal when it has picked one.
   It will state as settled things that a careful person would attribute.
+- **It may call itself „Скажна"** — the project codename, which was its identity
+  in the style constitution used as the training system prompt. Harmless, but
+  surprising if you were expecting it to answer to Clement.
 - **Text only.** Gemma-4-12B is multimodal, but this model was built from the
   extracted *text tower* — the 11 vision and audio embedder tensors were dropped
   before any training, and the vision/audio configs stripped. Clement cannot see
