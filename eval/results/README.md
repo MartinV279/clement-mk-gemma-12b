@@ -49,3 +49,34 @@ renamed from the internal build id to the release name for publication, and the
 harness's machine-environment dump (hostname, local paths, hardware serials) was
 removed. Scores, seeds, and task configuration are unchanged; both files record
 this in a `_note` field.
+
+## Comparison with published VezilkaLLM results
+
+[VezilkaLLM](https://huggingface.co/finki-ukim/VezilkaLLM) (FINKI/UKIM, 4B, base
+model on Gemma-3-4B) publishes benchmark results on its model card. Seven of its
+eight tasks overlap with this battery (NQ Open does not). Their published
+numbers against ours:
+
+| Task | VezilkaLLM 4B (published) | Clement 12B (this repo) |
+|---|---|---|
+| ARC Challenge | 0.30 | 0.3473 |
+| ARC Easy | 0.50 | 0.5274 |
+| BoolQ | 0.72 | 0.7807 |
+| HellaSwag | 0.41 | 0.4754 |
+| OpenBookQA | 0.25 | 0.3260 |
+| PIQA | 0.65 | 0.6872 |
+| Winogrande | 0.59 | 0.6140 |
+
+Read it with two caveats, stated so you do not have to discover them:
+
+- **These are cross-setup numbers, not a same-harness re-run.** Usefully, their
+  card also lists domestic-yak-8B, which we *did* measure ourselves — their yak
+  numbers differ from our yak numbers by roughly 1–3 points per task (e.g. ARC
+  Easy 0.52 published vs 0.5484 measured here). Treat differences under ~3
+  points as harness noise. Clement's margins over VezilkaLLM's published
+  numbers are ~3–9 points.
+- **The models are not size-matched.** VezilkaLLM is a 4B base model and states
+  itself to be a foundation for future fine-tuning; Clement is a 12B
+  instruction-tuned model. A larger adapted model outperforming a smaller base
+  model is expected — the comparison is included for completeness of the
+  Macedonian-model landscape, not as a like-for-like contest.
